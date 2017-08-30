@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2016 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -53,6 +53,7 @@ import org.pentaho.big.data.api.cluster.NamedCluster;
 import org.pentaho.big.data.api.cluster.NamedClusterService;
 import org.pentaho.big.data.api.cluster.service.locator.NamedClusterServiceLocator;
 import org.pentaho.big.data.api.initializer.ClusterInitializationException;
+import org.pentaho.big.data.kettle.plugins.hbase.ServiceStatus;
 import org.pentaho.big.data.kettle.plugins.hbase.mapping.ConfigurationProducer;
 import org.pentaho.big.data.kettle.plugins.hbase.mapping.MappingAdmin;
 import org.pentaho.big.data.kettle.plugins.hbase.mapping.MappingEditor;
@@ -888,6 +889,13 @@ public class HBaseInputDialog extends BaseStepDialog implements StepDialogInterf
 
     getData();
 
+    ServiceStatus serviceStatus = m_currentMeta.getServiceStatus();
+    if ( !serviceStatus.isOk() ) {
+      new ErrorDialog( shell, Messages.getString( "Dialog.Error" ),
+              Messages.getString( "HBaseInput.Error.ServiceStatus" ),
+              serviceStatus.getException() );
+    }
+
     shell.open();
     while ( !shell.isDisposed() ) {
       if ( !display.readAndDispatch() ) {
@@ -1355,6 +1363,9 @@ public class HBaseInputDialog extends BaseStepDialog implements StepDialogInterf
 
           // get all the fields from the mapping
           for ( String alias : mappedColumns.keySet() ) {
+            if ( alias.equalsIgnoreCase( m_keyName ) ) {
+              continue;
+            }
             HBaseValueMetaInterface column = mappedColumns.get( alias );
             String aliasS = column.getAlias();
             String family = column.getColumnFamily();

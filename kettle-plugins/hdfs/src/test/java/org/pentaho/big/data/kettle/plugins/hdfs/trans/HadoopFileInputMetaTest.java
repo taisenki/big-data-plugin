@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Pentaho Big Data
  * <p/>
- * Copyright (C) 2002-2016 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  * <p/>
  * ******************************************************************************
  * <p/>
@@ -24,10 +24,15 @@ import org.jdom.input.SAXBuilder;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.pentaho.big.data.api.cluster.NamedCluster;
 import org.pentaho.big.data.api.cluster.NamedClusterService;
 import org.pentaho.di.core.xml.XMLHandler;
-import org.pentaho.di.trans.steps.fileinput.BaseFileInputField;
+import org.pentaho.di.repository.Repository;
+import org.pentaho.di.trans.TransMeta;
+import org.pentaho.di.trans.step.StepMeta;
+import org.pentaho.di.trans.steps.file.BaseFileField;
 import org.pentaho.di.trans.steps.fileinput.text.TextFileFilter;
+import org.pentaho.di.trans.steps.named.cluster.NamedClusterEmbedManager;
 import org.pentaho.metastore.api.IMetaStore;
 import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
@@ -39,7 +44,11 @@ import java.util.HashMap;
 import java.util.Locale;
 
 import static org.junit.Assert.assertEquals;
+
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.eq;
+
 import static org.mockito.Mockito.*;
 
 /**
@@ -80,6 +89,12 @@ public class HadoopFileInputMetaTest {
     HashMap<String, String> mappings = new HashMap<>();
     mappings.put( TEST_FILE_NAME, HadoopFileOutputMetaTest.TEST_CLUSTER_NAME );
     spy.setNamedClusterURLMapping( mappings );
+    StepMeta parentStepMeta = mock( StepMeta.class );
+    TransMeta parentTransMeta = mock( TransMeta.class );
+    when( parentStepMeta.getParentTransMeta() ).thenReturn( parentTransMeta );
+    NamedClusterEmbedManager embedManager = mock( NamedClusterEmbedManager.class );
+    when( parentTransMeta.getNamedClusterEmbedManager() ).thenReturn( embedManager );
+    spy.setParentStepMeta( parentStepMeta );
     String xml = spy.getXML();
     Document hadoopOutputMetaStep = HadoopFileOutputMetaTest.getDocumentFromString( xml, new SAXBuilder() );
     Element fileElement = HadoopFileOutputMetaTest.getChildElementByTagName( hadoopOutputMetaStep.getRootElement(), "file" );
@@ -89,6 +104,7 @@ public class HadoopFileInputMetaTest {
     assertEquals( TEST_CLUSTER_NAME, clusterNameElement.getValue() );
     //check that saveSource is called from TextFileOutputMeta
     verify( spy, times( 1 ) ).saveSource( any( StringBuilder.class ), any( String.class ) );
+    verify( embedManager ).registerUrl( "test-file-name" );
   }
 
   private HadoopFileInputMeta initHadoopMetaInput( HadoopFileInputMeta hadoopFileInputMeta ) {
@@ -96,7 +112,7 @@ public class HadoopFileInputMetaTest {
     when( spy.getFileName() ).thenReturn( new String[] {} );
     spy.setFileName( new String[] { TEST_FILE_NAME } );
     spy.setFilter( new TextFileFilter[] {} );
-    spy.inputFiles.inputFields = new BaseFileInputField[] {};
+    spy.inputFields = new BaseFileField[] {};
     spy.inputFiles.fileMask = new String[] { TEST_FILE_NAME };
     spy.inputFiles.fileRequired = new String[] { TEST_FILE_NAME };
     spy.inputFiles.includeSubFolders = new String[] { TEST_FOLDER_NAME };
@@ -125,8 +141,22 @@ public class HadoopFileInputMetaTest {
     IMetaStore metaStore = mock( IMetaStore.class );
     spy.loadXML( node, Collections.emptyList(), metaStore );
     assertEquals( TEST_CLUSTER_NAME, hadoopFileInputMeta.getNamedClusterURLMapping().get( TEST_FILE_NAME ) );
-    verify( spy, times( 1 ) ).loadSource( any( Node.class ), any( Node.class ), anyInt(), any( IMetaStore.class) );
+    verify( spy, times( 1 ) ).loadSource( any( Node.class ), any( Node.class ), anyInt(), any( IMetaStore.class ) );
   }
 
+  @Test
+  public void testLoadSourceRepForUrlRefresh() throws Exception {
+    final String URL_FROM_CLUSTER = "urlFromCluster";
+    IMetaStore mockMetaStore = mock( IMetaStore.class );
+    NamedCluster mockNamedCluster = mock( NamedCluster.class );
+    when( mockNamedCluster.processURLsubstitution( any(), eq( mockMetaStore ), any() ) ).thenReturn( URL_FROM_CLUSTER );
+    when( namedClusterService.getNamedClusterByName( TEST_CLUSTER_NAME, mockMetaStore ) ).thenReturn( mockNamedCluster );
+    Repository mockRep = mock( Repository.class );
+    when( mockRep.getJobEntryAttributeString( anyObject(), eq( 0 ), eq( "source_configuration_name" ) ) ).thenReturn( TEST_CLUSTER_NAME );
+    HadoopFileInputMeta hadoopFileInputMeta =  new HadoopFileInputMeta( namedClusterService, runtimeTestActionService, runtimeTester );
+    when( mockRep.getStepAttributeString( anyObject(), eq( 0 ), eq( "file_name" ) ) ).thenReturn( URL_FROM_CLUSTER );
+
+    assertEquals( URL_FROM_CLUSTER, hadoopFileInputMeta.loadSourceRep( mockRep, null, 0, mockMetaStore ) );
+  }
 
 }

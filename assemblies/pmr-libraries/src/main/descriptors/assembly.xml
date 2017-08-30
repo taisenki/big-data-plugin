@@ -17,6 +17,10 @@
       <directory>target/classes</directory>
       <outputDirectory>/</outputDirectory>
     </fileSet>
+    <fileSet>
+      <directory>target/simple-jndi</directory>
+      <outputDirectory>/</outputDirectory>
+    </fileSet>
   </fileSets>
   <dependencySets>
     <dependencySet>
@@ -49,14 +53,14 @@
         <include>com.lowagie:itext</include>
         <include>com.lowagie:itext-rtf</include>
         <include>commons-beanutils:commons-beanutils</include>
-        <include>commons-beanutils:commons-beanutils-core</include>
         <include>commons-cli:commons-cli</include>
         <include>commons-collections:commons-collections</include>
         <include>commons-dbcp:commons-dbcp</include>
         <include>commons-digester:commons-digester</include>
         <include>commons-discovery:commons-discovery</include>
         <include>commons-fileupload:commons-fileupload</include>
-        <include>commons-httpclient:commons-httpclient</include>
+        <include>org.apache.httpcomponents:httpclient</include>
+        <include>org.apache.httpcomponents:httpcore</include>
         <include>commons-io:commons-io</include>
         <include>commons-lang:commons-lang</include>
         <include>commons-logging:commons-logging</include>
@@ -75,7 +79,7 @@
         <include>eigenbase:eigenbase-properties</include>
         <include>eigenbase:eigenbase-resgen</include>
         <include>eigenbase:eigenbase-xom</include>
-        <include>elasticsearch:elasticsearch</include>
+        <include>org.elasticsearch:elasticsearch</include>
         <include>feed4j:feed4j</include>
         <include>ftp4che:ftp4che</include>
         <include>georss-rome:georss-rome</include>
@@ -120,6 +124,7 @@
         <include>org.apache.poi:poi</include>
         <include>org.apache.poi:poi-ooxml</include>
         <include>org.apache.poi:poi-ooxml-schemas</include>
+        <include>org.apache.commons:commons-collections4</include>
         <include>org.apache.xmlbeans:xmlbeans</include>
         <include>org.apache.xmlgraphics:batik-anim</include>
         <include>org.apache.xmlgraphics:batik-awt-util</include>
@@ -141,7 +146,7 @@
         <include>org.codehaus.jackson:jackson-core-asl</include>
         <include>org.codehaus.jackson:jackson-jaxrs</include>
         <include>org.codehaus.jackson:jackson-mapper-asl</include>
-        <include>org.drools:drools-api</include>
+        <include>org.drools:knowledge-api</include>
         <include>org.drools:drools-compiler</include>
         <include>org.drools:drools-core</include>
         <include>org.eclipse.jetty:jetty-continuation</include>
@@ -159,14 +164,14 @@
         <include>org.hibernate:hibernate-core</include>
         <include>org.hibernate:hibernate-ehcache</include>
         <include>org.ini4j:ini4j</include>
-        <include>org.json:json</include>
+        <include>org.pentaho:json</include>
         <include>log4j:log4j</include>
         <include>org.mnode.mstor:mstor</include>
         <include>org.mvel:mvel2</include>
         <include>org.odftoolkit:odfdom-java</include>
         <include>org.olap4j:olap4j</include>
         <include>org.olap4j:olap4j-xmla</include>
-        <include>org.owasp.esapi:esapi</include>
+        <include>org.owasp.encoder:encoder</include>
         <include>org.postgresql:postgresql</include>
         <include>org.safehaus.jug:jug-lgpl</include>
         <include>org.samba.jcifs:jcifs</include>
@@ -187,18 +192,18 @@
         <include>pentaho-kettle:kettle-core</include>
         <include>pentaho-kettle:kettle-engine</include>
         <include>pentaho-kettle:kettle-ui-swt</include>
-        <include>pentaho-library:flute</include>
-        <include>pentaho-library:libbase</include>
-        <include>pentaho-library:libdocbundle</include>
-        <include>pentaho-library:libfonts</include>
-        <include>pentaho-library:libformat</include>
-        <include>pentaho-library:libformula</include>
-        <include>pentaho-library:libloader</include>
-        <include>pentaho-library:libpixie</include>
-        <include>pentaho-library:librepository</include>
-        <include>pentaho-library:libserializer</include>
-        <include>pentaho-library:libswing</include>
-        <include>pentaho-library:libxml</include>
+        <include>org.pentaho.reporting.library:flute</include>
+        <include>org.pentaho.reporting.library:libbase</include>
+        <include>org.pentaho.reporting.library:libdocbundle</include>
+        <include>org.pentaho.reporting.library:libfonts</include>
+        <include>org.pentaho.reporting.library:libformat</include>
+        <include>org.pentaho.reporting.library:libformula</include>
+        <include>org.pentaho.reporting.library:libloader</include>
+        <include>org.pentaho.reporting.library:libpixie</include>
+        <include>org.pentaho.reporting.library:librepository</include>
+        <include>org.pentaho.reporting.library:libserializer</include>
+        <include>org.pentaho.reporting.library:libswing</include>
+        <include>org.pentaho.reporting.library:libxml</include>
         <include>pentaho:pdi-osgi-bridge-core</include>
         <include>pentaho:pentaho-platform-api</include>
         <include>pentaho:pentaho-platform-core</include>
@@ -208,16 +213,17 @@
         <include>pentaho:mondrian</include>
         <include>pentaho:pentaho-capability-manager</include>
         <include>pentaho:pentaho-database-model</include>
-        <include>pentaho:pentaho-hadoop-shims-api</include>
+        <include>org.pentaho:pentaho-hadoop-shims-api</include>
         <include>pentaho:pentaho-metadata</include>
         <include>pentaho:pentaho-osgi-utils-api</include>
         <include>pentaho:pentaho-registry</include>
-        <include>pentaho-reporting-engine:pentaho-reporting-engine-classic-core</include>
+        <include>pentaho:simple-jndi</include>
+        <include>org.pentaho.reporting.engine:classic-core</include>
         <include>pentaho:salesforce-partner</include>
         <include>pentaho:pentaho-service-coordinator</include>
         <include>rhino:js</include>
         <include>rome:rome</include>
-        <include>secondstring:secondstring</include>
+        <include>com.wcohen:com.wcohen.secondstring</include>
         <include>stax:stax</include>
         <include>stax:stax-api</include>
         <include>sun:jlfgr</include>
@@ -225,7 +231,6 @@
         <include>woodstox:wstx-asl</include>
         <include>wsdl4j:wsdl4j</include>
         <include>wsdl4j:wsdl4j-qname</include>
-        <include>xerces:xercesImpl</include>
         <include>xml-apis:xml-apis</include>
         <include>xml-apis:xml-apis-ext</include>
         <include>xmlpull:xmlpull</include>

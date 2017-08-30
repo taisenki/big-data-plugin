@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -25,6 +25,7 @@ package org.pentaho.big.data.plugins.common.ui;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.events.ShellAdapter;
 import org.eclipse.swt.events.ShellEvent;
 import org.eclipse.swt.layout.FormAttachment;
@@ -65,6 +66,7 @@ import org.pentaho.runtime.test.action.RuntimeTestActionService;
  */
 public class NamedClusterDialogImpl extends Dialog {
   private static final int RESULT_NO = 1;
+  private static final int DIALOG_WIDTH = 459;
   private static Class<?> PKG = NamedClusterDialogImpl.class; // for i18n purposes, needed by Translator2!!
   private final NamedClusterService namedClusterService;
   private final RuntimeTestActionService runtimeTestActionService;
@@ -119,55 +121,61 @@ public class NamedClusterDialogImpl extends Dialog {
   public String open() {
     Shell parent = getParent();
     Display display = parent.getDisplay();
-    shell = new Shell( parent, SWT.DIALOG_TRIM | SWT.CLOSE | SWT.ICON );
+    shell = new Shell( parent, SWT.DIALOG_TRIM | SWT.CLOSE | SWT.ICON | SWT.RESIZE );
     props.setLook( shell );
     shell.setImage( GUIResource.getInstance().getImageSpoon() );
-
-    int margin = Const.FORM_MARGIN;
-
-    PluginInterface plugin =
-      PluginRegistry.getInstance().findPluginWithId( LifecyclePluginType.class, /* TODO */ "HadoopSpoonPlugin" );
-    HelpUtils.createHelpButton( shell, HelpUtils.getHelpDialogTitle( plugin ),
-      BaseMessages.getString( PKG, "NamedClusterDialog.Shell.Doc" ),
-      BaseMessages.getString( PKG, "NamedClusterDialog.Shell.Title" ) );
-
-    FormLayout formLayout = new FormLayout();
-    formLayout.marginWidth = margin;
-    formLayout.marginHeight = margin;
-
+    shell.setMinimumSize( DIALOG_WIDTH, 458 );
     shell.setText( BaseMessages.getString( PKG, "NamedClusterDialog.Shell.Title" ) );
+    FormLayout formLayout = new FormLayout();
+    formLayout.marginWidth = 15;
+    formLayout.marginHeight = 15;
     shell.setLayout( formLayout );
 
-    NamedClusterComposite namedClusterComposite = new NamedClusterComposite( shell, namedCluster, props );
-    FormData fd = new FormData();
-    fd.left = new FormAttachment( 0, 0 );
-    fd.right = new FormAttachment( 100, 0 );
-    namedClusterComposite.setLayoutData( fd );
+    BaseStepDialog.setSize( shell );
 
-    shell.setSize( 450, 660 );
+    // Create help button
+    PluginInterface plugin =
+        PluginRegistry.getInstance().findPluginWithId( LifecyclePluginType.class, /* TODO */ "HadoopSpoonPlugin" );
+    HelpUtils.createHelpButton( shell, HelpUtils.getHelpDialogTitle( plugin ),
+        BaseMessages.getString( PKG, "NamedClusterDialog.Shell.Doc" ),
+        BaseMessages.getString( PKG, "NamedClusterDialog.Shell.Title" ) );
 
     // Buttons
-    Button wTest = new Button( shell, SWT.PUSH );
-    wTest.setText( BaseMessages.getString( PKG, "System.Button.Test" ) );
+    Button wCancel = new Button( shell, SWT.PUSH );
+    wCancel.setText( BaseMessages.getString( PKG, "System.Button.Cancel" ) );
+    FormData fd = new FormData();
 
     Button wOK = new Button( shell, SWT.PUSH );
     wOK.setText( BaseMessages.getString( PKG, "System.Button.OK" ) );
 
-    Button wCancel = new Button( shell, SWT.PUSH );
-    wCancel.setText( BaseMessages.getString( PKG, "System.Button.Cancel" ) );
+    Button wTest = new Button( shell, SWT.PUSH );
+    wTest.setText( BaseMessages.getString( PKG, "System.Button.Test" ) );
 
-    Button[] buttons = new Button[]{ wTest, wOK, wCancel };
-    BaseStepDialog.positionBottomRightButtons( shell, buttons, margin, null );
+    Button[] buttons = new Button[] { wTest, wOK, wCancel };
+
+    BaseStepDialog.positionBottomRightButtons( shell, buttons, Const.FORM_MARGIN, null );
 
     // Create a horizontal separator
     Label bottomSeparator = new Label( shell, SWT.HORIZONTAL | SWT.SEPARATOR );
 
-    int bottomSeparatorOffset = ( wOK.getBounds().height + Const.FORM_MARGIN );
     fd = new FormData();
-    fd.bottom = new FormAttachment( 100, -bottomSeparatorOffset );
+    fd.bottom = new FormAttachment( wCancel, -15 );
     fd.left = new FormAttachment( 0, 0 );
     fd.right = new FormAttachment( 100, 0 );
     bottomSeparator.setLayoutData( fd );
+
+    ScrolledComposite scrolledComposite = new ScrolledComposite( shell, SWT.V_SCROLL );
+    fd = new FormData();
+    fd.left = new FormAttachment( 0, 0 );
+    fd.right = new FormAttachment( 100, 0 );
+    fd.top = new FormAttachment( 0, 0 );
+    fd.bottom = new FormAttachment( bottomSeparator, -15 );
+    scrolledComposite.setLayoutData( fd );
+    props.setLook( scrolledComposite );
+
+    NamedClusterComposite namedClusterComposite = new NamedClusterComposite( scrolledComposite, namedCluster, props, namedClusterService );
+    scrolledComposite.setContent( namedClusterComposite );
+    namedClusterComposite.pack();
 
     // Add listeners
     wTest.addListener( SWT.Selection, new Listener() {
@@ -191,16 +199,8 @@ public class NamedClusterDialogImpl extends Dialog {
         }
       }
     } );
-    wOK.addListener( SWT.Selection, new Listener() {
-      public void handleEvent( Event e ) {
-        ok();
-      }
-    } );
-    wCancel.addListener( SWT.Selection, new Listener() {
-      public void handleEvent( Event e ) {
-        cancel();
-      }
-    } );
+    wOK.addListener( SWT.Selection, e -> ok() );
+    wCancel.addListener( SWT.Selection, e -> cancel() );
 
     // Detect X or ALT-F4 or something that kills this window...
     shell.addShellListener( new ShellAdapter() {
@@ -209,7 +209,19 @@ public class NamedClusterDialogImpl extends Dialog {
       }
     } );
 
-    //BaseStepDialog.setSize( shell );
+
+    namedClusterComposite.setStateChangeListener( () -> {
+      boolean enabled = !namedCluster.isUseGateway()
+          || ( StringUtils.isNotBlank( namedCluster.getName() )
+          && StringUtils.isNotBlank( namedCluster.getGatewayUrl() )
+          && StringUtils.isNotBlank( namedCluster.getGatewayUsername() )
+          && StringUtils.isNotBlank( namedCluster.getGatewayPassword() ) );
+
+      if ( wOK.isEnabled() != enabled ) {
+        wOK.setEnabled( enabled );
+      }
+    } );
+
     shell.open();
     while ( !shell.isDisposed() ) {
       if ( !display.readAndDispatch() ) {

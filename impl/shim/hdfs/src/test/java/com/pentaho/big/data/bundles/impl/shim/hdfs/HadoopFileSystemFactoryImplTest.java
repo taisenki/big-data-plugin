@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -67,13 +67,13 @@ public class HadoopFileSystemFactoryImplTest {
     when( hadoopShim.getFileSystem( configuration ) ).thenReturn( fileSystem );
     identifier = "testId";
     when( hadoopConfiguration.getIdentifier() ).thenReturn( identifier );
-    hadoopFileSystemFactory = new HadoopFileSystemFactoryImpl( isActiveConfiguration, hadoopConfiguration );
+    hadoopFileSystemFactory = new HadoopFileSystemFactoryImpl( isActiveConfiguration, hadoopConfiguration, "hdfs" );
   }
 
   @Test
   public void testCanHandleActiveConfig() {
     assertFalse( hadoopFileSystemFactory.canHandle( namedCluster ) );
-    hadoopFileSystemFactory = new HadoopFileSystemFactoryImpl( true, hadoopConfiguration );
+    hadoopFileSystemFactory = new HadoopFileSystemFactoryImpl( true, hadoopConfiguration, "hdfs" );
     assertTrue( hadoopFileSystemFactory.canHandle( namedCluster ) );
   }
 
@@ -81,7 +81,6 @@ public class HadoopFileSystemFactoryImplTest {
   public void testCreateMapr() throws IOException {
     when( namedCluster.isMapr() ).thenReturn( true );
     HadoopFileSystem hadoopFileSystem = hadoopFileSystemFactory.create( namedCluster );
-    verify( configuration ).set( HadoopFileSystem.FS_DEFAULT_NAME, "maprfs:///" );
     assertNotNull( hadoopFileSystem );
   }
 
@@ -91,7 +90,6 @@ public class HadoopFileSystemFactoryImplTest {
     when( namedCluster.isMapr() ).thenReturn( false );
     when( namedCluster.getHdfsHost() ).thenReturn( testHost );
     HadoopFileSystem hadoopFileSystem = hadoopFileSystemFactory.create( namedCluster );
-    verify( configuration ).set( HadoopFileSystem.FS_DEFAULT_NAME, "hdfs://" + testHost );
     assertNotNull( hadoopFileSystem );
   }
 
@@ -103,7 +101,6 @@ public class HadoopFileSystemFactoryImplTest {
     when( namedCluster.getHdfsHost() ).thenReturn( testHost );
     when( namedCluster.getHdfsPort() ).thenReturn( testPort );
     HadoopFileSystem hadoopFileSystem = hadoopFileSystemFactory.create( namedCluster );
-    verify( configuration ).set( HadoopFileSystem.FS_DEFAULT_NAME, "hdfs://" + testHost + ":" + testPort );
     assertNotNull( hadoopFileSystem );
   }
 

@@ -5,10 +5,10 @@
   <parent>
     <groupId>pentaho</groupId>
     <artifactId>pentaho-big-data-assemblies</artifactId>
-    <version>7.0-SNAPSHOT</version>
+    <version>8.0-SNAPSHOT</version>
   </parent>
   <artifactId>pentaho-big-data-plugin</artifactId>
-  <version>7.0-SNAPSHOT</version>
+  <version>8.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <licenses>
     <license>
@@ -34,11 +34,6 @@
     </dependency>
     <dependency>
       <groupId>pentaho</groupId>
-      <artifactId>pentaho-hadoop-shims-api</artifactId>
-      <version>${dependency.hadoop-shims-api.revision}</version>
-    </dependency>
-    <dependency>
-      <groupId>pentaho</groupId>
       <artifactId>pentaho-s3-vfs</artifactId>
       <version>${dependency.pentaho-s3-vfs.revision}</version>
     </dependency>
@@ -60,6 +55,17 @@
         <exclusion>
           <artifactId>jackson-core-asl</artifactId>
           <groupId>org.codehaus.jackson</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+      <version>${dependency.joda-time.revision}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>*</artifactId>
+          <groupId>*</groupId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -96,12 +102,12 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
-      <version>${dependency.httpcomponents.revision}</version>
+      <version>${dependency.httpcomponents-client.revision}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore</artifactId>
-      <version>${dependency.httpcomponents.revision}</version>
+      <version>${dependency.httpcomponents-core.revision}</version>
     </dependency>
     <dependency>
       <groupId>net.java.dev.jets3t</groupId>
@@ -114,8 +120,8 @@
       <version>${dependency.jline.revision}</version>
     </dependency>
     <dependency>
-      <groupId>pentaho-kettle</groupId>
-      <artifactId>kettle5-log4j-plugin</artifactId>
+      <groupId>org.pentaho.di.plugins</groupId>
+      <artifactId>kettle-log4j-core</artifactId>
       <version>${dependency.kettle.revision}</version>
     </dependency>
     <dependency>
@@ -138,57 +144,93 @@
       <artifactId>xmlpull</artifactId>
       <version>${dependency.xmlpull.revision}</version>
     </dependency>
-	<dependency>
+    <dependency>
       <groupId>xpp3</groupId>
       <artifactId>xpp3_min</artifactId>
       <version>${dependency.xpp3.revision}</version>
     </dependency>
-	<dependency>
+    <dependency>
       <groupId>com.thoughtworks.xstream</groupId>
       <artifactId>xstream</artifactId>
       <version>${dependency.xstream.revision}</version>
     </dependency>
-	<dependency>
-      <groupId>pentaho</groupId>
-      <artifactId>pentaho-hadoop-shims-cdh55-package</artifactId>
-      <version>${dependency.hadoop-shims-cdh55.revision}</version>
+    <dependency>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-cdh511-package</artifactId>
+      <version>${dependency.hadoop-shims-cdh511.revision}</version>
       <type>zip</type>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
-      <groupId>pentaho</groupId>
-      <artifactId>pentaho-hadoop-shims-cdh57-package</artifactId>
-      <version>${dependency.hadoop-shims-cdh57.revision}</version>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-cdh512-package</artifactId>
+      <version>${hadoop-shims-cdh512.version}</version>
       <type>zip</type>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
-      <groupId>pentaho</groupId>
-      <artifactId>pentaho-hadoop-shims-hdp24-package</artifactId>
-      <version>${dependency.hadoop-shims-hdp24.revision}</version>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-hdp26-package</artifactId>
+      <version>${dependency.hadoop-shims-hdp26.revision}</version>
       <type>zip</type>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
-      <groupId>pentaho</groupId>
-      <artifactId>pentaho-hadoop-shims-mapr410-package</artifactId>
-      <version>${dependency.hadoop-shims-mapr410.revision}</version>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-mapr520-package</artifactId>
+      <version>${dependency.hadoop-shims-mapr520.revision}</version>
       <type>zip</type>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
-      <groupId>pentaho</groupId>
-      <artifactId>pentaho-hadoop-shims-mapr510-package</artifactId>
-      <version>${dependency.hadoop-shims-mapr510.revision}</version>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-emr531-package</artifactId>
+      <version>${dependency.hadoop-shims-emr531.revision}</version>
       <type>zip</type>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
-     <dependency>
-      <groupId>pentaho</groupId>
-      <artifactId>pentaho-hadoop-shims-emr46-package</artifactId>
-      <version>${dependency.hadoop-shims-emr46.revision}</version>
+    <dependency>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-emr56-package</artifactId>
+      <version>${hadoop-shims-emr56.version}</version>
       <type>zip</type>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>pentaho</groupId>
@@ -227,39 +269,39 @@
             </goals>
             <configuration>
               <artifactItems>
-			  	<artifactItem>
-                  <groupId>pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-cdh55-package</artifactId>
-                  <type>zip</type>
-                  <outputDirectory>${basedir}/target/plugins/pentaho-big-data-plugin/hadoop-configurations</outputDirectory>
-                </artifactItem>
-				<artifactItem>
-                  <groupId>pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-cdh57-package</artifactId>
-                  <type>zip</type>
-                  <outputDirectory>${basedir}/target/plugins/pentaho-big-data-plugin/hadoop-configurations</outputDirectory>
-                </artifactItem>
-                 <artifactItem>
-                  <groupId>pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-hdp24-package</artifactId>
+                <artifactItem>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-cdh511-package</artifactId>
                   <type>zip</type>
                   <outputDirectory>${basedir}/target/plugins/pentaho-big-data-plugin/hadoop-configurations</outputDirectory>
                 </artifactItem>
                 <artifactItem>
-                  <groupId>pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-mapr410-package</artifactId>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-cdh512-package</artifactId>
                   <type>zip</type>
                   <outputDirectory>${basedir}/target/plugins/pentaho-big-data-plugin/hadoop-configurations</outputDirectory>
                 </artifactItem>
                 <artifactItem>
-                  <groupId>pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-mapr510-package</artifactId>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-hdp26-package</artifactId>
                   <type>zip</type>
                   <outputDirectory>${basedir}/target/plugins/pentaho-big-data-plugin/hadoop-configurations</outputDirectory>
                 </artifactItem>
                 <artifactItem>
-                  <groupId>pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-emr46-package</artifactId>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-mapr520-package</artifactId>
+                  <type>zip</type>
+                  <outputDirectory>${basedir}/target/plugins/pentaho-big-data-plugin/hadoop-configurations</outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-emr531-package</artifactId>
+                  <type>zip</type>
+                  <outputDirectory>${basedir}/target/plugins/pentaho-big-data-plugin/hadoop-configurations</outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-emr56-package</artifactId>
                   <type>zip</type>
                   <outputDirectory>${basedir}/target/plugins/pentaho-big-data-plugin/hadoop-configurations</outputDirectory>
                 </artifactItem>
@@ -281,7 +323,9 @@
           </execution>
         </executions>
         <configuration>
-          <descriptor>${basedir}/src/main/assembly/descriptors/plugin.xml</descriptor>
+          <descriptors>
+            <descriptor>${basedir}/src/main/assembly/descriptors/plugin.xml</descriptor>
+          </descriptors>
           <appendAssemblyId>false</appendAssemblyId>
         </configuration>
       </plugin>

@@ -22,6 +22,7 @@
 
 package org.pentaho.big.data.api.jdbc.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.pentaho.big.data.api.initializer.ClusterInitializer;
 import org.pentaho.big.data.api.jdbc.JdbcUrlParser;
 import org.pentaho.di.core.database.DelegatingDriver;
@@ -33,6 +34,8 @@ import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -41,23 +44,34 @@ import java.util.logging.Logger;
  * Created by bryan on 4/27/16.
  */
 public class ClusterInitializingDriver implements Driver {
-  private static final org.slf4j.Logger logger = LoggerFactory.getLogger( ClusterInitializingDriver.class );
+
+  private static final List<String> BIG_DATA_DRIVER_URL_PATTERNS = new ArrayList<>();
+
+  @VisibleForTesting
+  protected static org.slf4j.Logger logger = LoggerFactory.getLogger( ClusterInitializingDriver.class );
+
   private final ClusterInitializer clusterInitializer;
   private final JdbcUrlParser jdbcUrlParser;
 
+  static {
+    BIG_DATA_DRIVER_URL_PATTERNS.add( ".+:hive:.*" );
+    BIG_DATA_DRIVER_URL_PATTERNS.add( ".+:hive2:.*" );
+    BIG_DATA_DRIVER_URL_PATTERNS.add( ".+:impala:.*" );
+    BIG_DATA_DRIVER_URL_PATTERNS.add( ".+:spark:.*" );
+  }
+
   public ClusterInitializingDriver( ClusterInitializer clusterInitializer, JdbcUrlParser jdbcUrlParser,
-                                    DriverLocatorImpl driverRegistry ) {
+      DriverLocatorImpl driverRegistry ) {
     this( clusterInitializer, jdbcUrlParser, driverRegistry, null );
   }
 
   public ClusterInitializingDriver( ClusterInitializer clusterInitializer, JdbcUrlParser jdbcUrlParser,
-                                    DriverLocatorImpl driverRegistry, Integer numLazyProxies ) {
+      DriverLocatorImpl driverRegistry, Integer numLazyProxies ) {
     this( clusterInitializer, jdbcUrlParser, driverRegistry, numLazyProxies, DriverManager::registerDriver );
   }
 
   public ClusterInitializingDriver( ClusterInitializer clusterInitializer, JdbcUrlParser jdbcUrlParser,
-                                    DriverLocatorImpl driverRegistry, Integer numLazyProxies,
-                                    HasRegisterDriver hasRegisterDriver ) {
+      DriverLocatorImpl driverRegistry, Integer numLazyProxies, HasRegisterDriver hasRegisterDriver ) {
     this.clusterInitializer = clusterInitializer;
     this.jdbcUrlParser = jdbcUrlParser;
     int lazyProxies = Optional.ofNullable( numLazyProxies ).orElse( 5 );
@@ -75,41 +89,77 @@ public class ClusterInitializingDriver implements Driver {
     }
   }
 
-  @Override public Connection connect( String url, Properties info ) throws SQLException {
-    initializeCluster( url );
+  @Override
+  public Connection connect( String url, Properties info ) throws SQLException {
+    if ( checkIfUsesBigDataDriver( url ) ) {
+      initializeCluster( url );
+    }
     return null;
   }
 
-  @Override public boolean acceptsURL( String url ) throws SQLException {
-    initializeCluster( url );
+  @Override
+  public boolean acceptsURL( String url ) throws SQLException {
+    if ( checkIfUsesBigDataDriver( url ) ) {
+      initializeCluster( url );
+    }
     return false;
+  }
+
+  boolean checkIfUsesBigDataDriver( String url ) {
+    List<String> urlPatterns = getUrlPatternsForBigDataDrivers();
+    for ( String pattern : urlPatterns ) {
+      if ( url.matches( pattern ) ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  List<String> getUrlPatternsForBigDataDrivers() {
+    return BIG_DATA_DRIVER_URL_PATTERNS;
   }
 
   private void initializeCluster( String url ) {
     try {
-      clusterInitializer.initialize( jdbcUrlParser.parse( url ).getNamedCluster() );
+      // Initialize with a null namedCluster, since jdbc connections are not
+      // associated with namedClusters.
+      // Formerly this method used the following to determine cluster:
+      // jdbcUrlParser.parse( url ).getNamedCluster() );
+      // But this had the potential to create a block. BACKLOG-10983
+      clusterInitializer.initialize( null );
     } catch ( Exception e ) {
-      logger.warn( "Can't parse " + url, e );
+      // Don't want to depend on legacy, so can't directly
+      // check for NoShimSpecifiedException
+      if ( e.getCause() != null && e.getCause().getClass().getName().contains( "NoShimSpecifiedException" ) ) {
+        logger.debug( "No shim specified", e );
+      } else {
+        logger.error( "Failed to initialize cluster", e );
+      }
     }
   }
 
-  @Override public DriverPropertyInfo[] getPropertyInfo( String url, Properties info ) throws SQLException {
-    return new DriverPropertyInfo[ 0 ];
+  @Override
+  public DriverPropertyInfo[] getPropertyInfo( String url, Properties info ) throws SQLException {
+    return new DriverPropertyInfo[0];
   }
 
-  @Override public int getMajorVersion() {
+  @Override
+  public int getMajorVersion() {
     return 0;
   }
 
-  @Override public int getMinorVersion() {
+  @Override
+  public int getMinorVersion() {
     return 0;
   }
 
-  @Override public boolean jdbcCompliant() {
+  @Override
+  public boolean jdbcCompliant() {
     return false;
   }
 
-  @Override public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+  @Override
+  public Logger getParentLogger() throws SQLFeatureNotSupportedException {
     return null;
   }
 }

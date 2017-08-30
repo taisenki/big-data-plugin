@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -44,9 +44,9 @@ public class PingJobTrackerTest extends BaseRuntimeTest {
     "jobTrackerPingJobTrackerTest";
   public static final String PING_JOB_TRACKER_TEST_NAME = "PingJobTrackerTest.Name";
   private static final Class<?> PKG = PingJobTrackerTest.class;
-  private final MessageGetterFactory messageGetterFactory;
+  protected final MessageGetterFactory messageGetterFactory;
   private final MessageGetter messageGetter;
-  private final ConnectivityTestFactory connectivityTestFactory;
+  protected final ConnectivityTestFactory connectivityTestFactory;
 
 
   public PingJobTrackerTest( MessageGetterFactory messageGetterFactory,

@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -52,8 +52,7 @@ import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
 import org.w3c.dom.Node;
 
-import java.io.File;
-import java.net.URL;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -149,6 +148,7 @@ public class JobEntryPigScriptExecutor extends JobEntryBase implements Cloneable
       namedCluster = namedClusterService.getClusterTemplate();
       if ( entrynode != null ) {
         // load default values for cluster & legacy fallback
+        namedCluster.setName( XMLHandler.getTagValue( entrynode, CLUSTER_NAME ) );
         namedCluster.setHdfsHost( XMLHandler.getTagValue( entrynode, HDFS_HOSTNAME ) ); //$NON-NLS-1$
         namedCluster.setHdfsPort( XMLHandler.getTagValue( entrynode, HDFS_PORT ) ); //$NON-NLS-1$
         namedCluster.setJobTrackerHost( XMLHandler.getTagValue( entrynode, JOBTRACKER_HOSTNAME ) ); //$NON-NLS-1$
@@ -156,6 +156,7 @@ public class JobEntryPigScriptExecutor extends JobEntryBase implements Cloneable
       } else if ( rep != null ) {
         // load default values for cluster & legacy fallback
         try {
+          namedCluster.setName( rep.getJobEntryAttributeString( id_jobentry, CLUSTER_NAME ) );
           namedCluster.setHdfsHost( rep.getJobEntryAttributeString( id_jobentry, HDFS_HOSTNAME ) );
           namedCluster.setHdfsPort( rep.getJobEntryAttributeString( id_jobentry, HDFS_PORT ) ); //$NON-NLS-1$
           namedCluster
@@ -436,15 +437,8 @@ public class JobEntryPigScriptExecutor extends JobEntryBase implements Cloneable
     }
 
     try {
-      URL scriptU = null;
       String scriptFileS = m_scriptFile;
       scriptFileS = environmentSubstitute( scriptFileS );
-      if ( scriptFileS.indexOf( "://" ) == -1 ) {
-        File scriptFile = new File( scriptFileS );
-        scriptU = scriptFile.toURI().toURL();
-      } else {
-        scriptU = new URL( scriptFileS );
-      }
 
       final PigService pigService = namedClusterServiceLocator.getService( namedCluster, PigService.class );
       // Make sure we can execute locally if desired
@@ -472,26 +466,7 @@ public class JobEntryPigScriptExecutor extends JobEntryBase implements Cloneable
       if ( m_enableBlocking ) {
         PigResult pigResult = pigService
           .executeScript( scriptFileS, execMode, paramList, getName(), getLogChannel(), this, parentJob.getLogLevel() );
-        int[] executionStatus = pigResult.getResult();
-        Exception pigResultException = pigResult.getException();
-        if ( executionStatus != null ) {
-          logBasic( BaseMessages.getString( PKG, "JobEntryPigScriptExecutor.JobCompletionStatus",
-            "" + executionStatus[ 0 ], "" + executionStatus[ 1 ] ) );
-
-          if ( executionStatus[ 1 ] > 0 ) {
-            result.setStopped( true );
-            result.setNrErrors( executionStatus[ 1 ] );
-            result.setResult( false );
-          }
-        } else if ( pigResultException != null ) {
-          logError( pigResultException.getMessage(), pigResultException );
-        }
-        FileObject logFile = pigResult.getLogFile();
-        if ( logFile != null ) {
-          ResultFile resultFile =
-            new ResultFile( ResultFile.FILE_TYPE_LOG, logFile, parentJob.getJobname(), getName() );
-          result.getResultFiles().put( resultFile.getFile().toString(), resultFile );
-        }
+        processScriptExecutionResult( pigResult, result );
       } else {
         final String finalScriptFileS = scriptFileS;
         final Thread runThread = new Thread() {
@@ -499,23 +474,7 @@ public class JobEntryPigScriptExecutor extends JobEntryBase implements Cloneable
             PigResult pigResult =
               pigService.executeScript( finalScriptFileS, execMode, paramList, getName(), getLogChannel(),
                 JobEntryPigScriptExecutor.this, parentJob.getLogLevel() );
-            int[] executionStatus = pigResult.getResult();
-            Exception exception = pigResult.getException();
-            if ( executionStatus != null ) {
-              logBasic( BaseMessages.getString( PKG, "JobEntryPigScriptExecutor.JobCompletionStatus", ""
-                + executionStatus[ 0 ], "" + executionStatus[ 1 ] ) );
-            } else if ( exception != null ) {
-              logError( exception.getMessage(), exception );
-              result.setStopped( true );
-              result.setNrErrors( 1 );
-              result.setResult( false );
-            }
-            FileObject logFile = pigResult.getLogFile();
-            if ( logFile != null ) {
-              ResultFile resultFile =
-                new ResultFile( ResultFile.FILE_TYPE_LOG, logFile, parentJob.getJobname(), getName() );
-              result.getResultFiles().put( resultFile.getFile().toString(), resultFile );
-            }
+            processScriptExecutionResult( pigResult, result );
           }
         };
 
@@ -544,6 +503,32 @@ public class JobEntryPigScriptExecutor extends JobEntryBase implements Cloneable
     }
 
     return result;
+  }
+
+  protected void processScriptExecutionResult( PigResult pigResult, Result result ) {
+    int[] executionStatus = pigResult.getResult();
+    Exception pigResultException = pigResult.getException();
+    if ( executionStatus != null ) {
+      logBasic( BaseMessages.getString( PKG, "JobEntryPigScriptExecutor.JobCompletionStatus",
+        "" + executionStatus[ 0 ], "" + executionStatus[ 1 ] ) );
+
+      if ( executionStatus[ 1 ] > 0 ) {
+        result.setStopped( true );
+        result.setNrErrors( executionStatus[ 1 ] );
+        result.setResult( false );
+      }
+    } else if ( pigResultException != null ) {
+      logError( pigResultException.getMessage(), pigResultException );
+      result.setStopped( true );
+      result.setNrErrors( 1 );
+      result.setResult( false );
+    }
+    FileObject logFile = pigResult.getLogFile();
+    if ( logFile != null ) {
+      ResultFile resultFile =
+        new ResultFile( ResultFile.FILE_TYPE_LOG, logFile, parentJob.getJobname(), getName() );
+      result.getResultFiles().put( resultFile.getFile().toString(), resultFile );
+    }
   }
 
   @VisibleForTesting

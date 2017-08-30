@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -24,6 +24,7 @@ package org.pentaho.big.data.api.cluster;
 
 import org.pentaho.di.core.variables.VariableSpace;
 import org.pentaho.metastore.api.IMetaStore;
+import org.w3c.dom.Node;
 
 import java.util.Comparator;
 
@@ -31,9 +32,24 @@ import java.util.Comparator;
  * Created by bryan on 6/24/15.
  */
 public interface NamedCluster extends Cloneable, VariableSpace {
+
+  public static final String NAMED_CLUSTERS_FS_OPTION = "namedClustersFSOption";
+
+  public static final String NAMED_CLUSTER_FS_OPTION = "namedClusterFSOption";
+
+  public static final String NAMED_CLUSTER_XML_TAG = "namedClusterTag";
+
   String getName();
 
   void setName( String name );
+
+  String getShimIdentifier();
+
+  void setShimIdentifier( String shimIdentifier );
+
+  String getStorageScheme();
+
+  void setStorageScheme( String storageScheme );
 
   void replaceMeta( NamedCluster nc );
 
@@ -81,7 +97,31 @@ public interface NamedCluster extends Cloneable, VariableSpace {
 
   void setMapr( boolean mapr );
 
+  String getGatewayUrl();
+
+  void setGatewayUrl( String gatewayUrl );
+
+  String getGatewayUsername();
+
+  void setGatewayUsername( String gatewayUsername );
+
+  String getGatewayPassword();
+
+  void setGatewayPassword( String gatewayPassword );
+
+  String getKafkaBootstrapServers();
+
+  void setKafkaBootstrapServers( String kafkaBootstrapServers );
+
+  void setUseGateway( boolean selection );
+
+  boolean isUseGateway();
+
   NamedCluster clone();
+
+  String toXmlForEmbed( String rootTag );
+
+  NamedCluster fromXmlForEmbed( Node node );
 
   /**
    * This method performs the root URL substitution with the URL of the specified NamedCluster

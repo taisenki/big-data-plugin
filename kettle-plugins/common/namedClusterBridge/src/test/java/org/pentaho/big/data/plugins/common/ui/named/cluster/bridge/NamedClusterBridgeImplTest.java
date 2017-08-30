@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -23,6 +23,8 @@
 package org.pentaho.big.data.plugins.common.ui.named.cluster.bridge;
 
 
+import java.util.Map;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -32,11 +34,19 @@ import org.pentaho.di.core.hadoop.HadoopSpoonPlugin;
 import org.pentaho.di.core.namedcluster.NamedClusterManager;
 import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.core.variables.VariableSpace;
+import org.pentaho.metastore.api.exceptions.MetaStoreException;
 
-import java.util.Map;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Matchers.any;
 
 /**
  * Unit tests for NamedClusterBridgeImpl. This is a bridge class to bridge NamedCluster objects from the legacy plugin
@@ -46,6 +56,7 @@ public class NamedClusterBridgeImplTest {
   private org.pentaho.di.core.namedcluster.model.NamedCluster legacyNamedCluster;
   private NamedClusterBridgeImpl namedClusterBridge;
   private String namedClusterName;
+  private String storageScheme;
   private String hdfsHost;
   private String hdfsPort;
   private String hdfsUsername;
@@ -55,11 +66,12 @@ public class NamedClusterBridgeImplTest {
   private String zookeeperHost;
   private String zookeeperPort;
   private String oozieUrl;
+  private String kafkaBootstrapServers;
   private boolean isMapr;
-  private String toString;
   private long lastModifiedDate;
   private VariableSpace variableSpace;
   private NamedClusterManager namedClusterManager;
+  private String xmlString;
 
   @Before
   public void setup() {
@@ -73,9 +85,10 @@ public class NamedClusterBridgeImplTest {
     zookeeperHost = "zookeeperHost";
     zookeeperPort = "zookeeperPort";
     oozieUrl = "oozieUrl";
+    kafkaBootstrapServers = "kafkaBootstrapServers";
     isMapr = true;
-    toString = "Named cluster: " + namedClusterName;
     lastModifiedDate = 11L;
+    xmlString = "xmlString";
 
     legacyNamedCluster = mock( org.pentaho.di.core.namedcluster.model.NamedCluster.class );
     namedClusterManager = mock( NamedClusterManager.class );
@@ -112,6 +125,7 @@ public class NamedClusterBridgeImplTest {
     NamedCluster namedCluster = mock( NamedCluster.class );
 
     when( namedCluster.getName() ).thenReturn( namedClusterName );
+    when( namedCluster.getStorageScheme() ).thenReturn( storageScheme );
     when( namedCluster.getHdfsHost() ).thenReturn( hdfsHost );
     when( namedCluster.getHdfsPort() ).thenReturn( hdfsPort );
     when( namedCluster.getHdfsUsername() ).thenReturn( hdfsUsername );
@@ -121,12 +135,14 @@ public class NamedClusterBridgeImplTest {
     when( namedCluster.getZooKeeperHost() ).thenReturn( zookeeperHost );
     when( namedCluster.getZooKeeperPort() ).thenReturn( zookeeperPort );
     when( namedCluster.getOozieUrl() ).thenReturn( oozieUrl );
+    when( namedCluster.getKafkaBootstrapServers() ).thenReturn( kafkaBootstrapServers );
     when( namedCluster.isMapr() ).thenReturn( isMapr );
 
     long before = System.currentTimeMillis();
     namedClusterBridge.replaceMeta( namedCluster );
     long after = System.currentTimeMillis();
     verify( legacyNamedCluster ).setName( namedClusterName );
+    verify( legacyNamedCluster ).setStorageScheme( storageScheme );
     verify( legacyNamedCluster ).setHdfsHost( hdfsHost );
     verify( legacyNamedCluster ).setHdfsPort( hdfsPort );
     verify( legacyNamedCluster ).setHdfsUsername( hdfsUsername );
@@ -136,7 +152,9 @@ public class NamedClusterBridgeImplTest {
     verify( legacyNamedCluster ).setZooKeeperHost( zookeeperHost );
     verify( legacyNamedCluster ).setZooKeeperPort( zookeeperPort );
     verify( legacyNamedCluster ).setOozieUrl( oozieUrl );
-    verify( legacyNamedCluster ).setMapr( isMapr );
+    verify( legacyNamedCluster ).setKafkaBootstrapServers( kafkaBootstrapServers );
+    // verify( legacyNamedCluster ).setMapr( isMapr );  *** Mapr is set by the setStorageScheme variable.
+    // It is being deprecated.
     ArgumentCaptor<Long> argumentCaptor = ArgumentCaptor.forClass( long.class );
     verify( legacyNamedCluster ).setLastModifiedDate( argumentCaptor.capture() );
     Long modified = argumentCaptor.getValue();
@@ -250,6 +268,18 @@ public class NamedClusterBridgeImplTest {
   public void testSetOozieUrl() {
     namedClusterBridge.setOozieUrl( oozieUrl );
     verify( legacyNamedCluster ).setOozieUrl( oozieUrl );
+  }
+
+  @Test
+  public void testSetKafkaBootstrapServers() {
+    namedClusterBridge.setKafkaBootstrapServers( kafkaBootstrapServers );
+    verify( legacyNamedCluster ).setKafkaBootstrapServers( kafkaBootstrapServers );
+  }
+
+  @Test
+  public void testGetKafkaBootstrapServers() {
+    when( legacyNamedCluster.getKafkaBootstrapServers() ).thenReturn( kafkaBootstrapServers );
+    assertEquals( kafkaBootstrapServers, namedClusterBridge.getKafkaBootstrapServers() );
   }
 
   @Test
@@ -401,8 +431,8 @@ public class NamedClusterBridgeImplTest {
     when( legacyNamedCluster.isMapr() ).thenReturn( true );
     String testUrl = "testUrl";
     String testUrlTransformed = "maprfs://testUrlTransformed";
-    when( namedClusterManager.processURLsubstitution( namedClusterName, testUrl, HadoopSpoonPlugin.MAPRFS_SCHEME, null, null ) ).thenReturn(
-      testUrlTransformed );
+    when( namedClusterManager.processURLsubstitution( namedClusterName, testUrl, HadoopSpoonPlugin.MAPRFS_SCHEME, null, null ) )
+      .thenReturn( testUrlTransformed );
     assertEquals( testUrlTransformed, namedClusterBridge.processURLsubstitution( testUrl, null, null ) );
   }
 
@@ -412,8 +442,25 @@ public class NamedClusterBridgeImplTest {
     when( legacyNamedCluster.isMapr() ).thenReturn( true );
     String testUrl = "testUrl";
     String testUrlTransformed = "testUrlTransformed";
-    when( namedClusterManager.processURLsubstitution( namedClusterName, testUrl, HadoopSpoonPlugin.MAPRFS_SCHEME, null, null ) ).thenReturn(
-      testUrlTransformed );
+    when( namedClusterManager.processURLsubstitution( namedClusterName, testUrl, HadoopSpoonPlugin.MAPRFS_SCHEME, null, null ) )
+      .thenReturn( testUrlTransformed );
     assertEquals( "maprfs://" + testUrlTransformed, namedClusterBridge.processURLsubstitution( testUrl, null, null ) );
   }
+
+  @Test
+  public void testProcessURLSubstitution_Gateway() throws MetaStoreException {
+    when( legacyNamedCluster.getName() ).thenReturn( namedClusterName );
+    when( legacyNamedCluster.isUseGateway() ).thenReturn( true );
+    String incomingURL = "/path";
+    String expected = "nc://" + legacyNamedCluster.getName() + incomingURL;
+    String actual = namedClusterBridge.processURLsubstitution( incomingURL, null, null );
+    assertTrue( "Expected " + expected + " actual " + actual, expected.equalsIgnoreCase( actual ) );
+  }
+
+  @Test
+  public void testToXmlForEmbed() {
+    when( legacyNamedCluster.toXmlForEmbed( any() ) ).thenReturn( xmlString );
+    assertEquals( xmlString, namedClusterBridge.toXmlForEmbed( "node" ) );
+  }
+
 }

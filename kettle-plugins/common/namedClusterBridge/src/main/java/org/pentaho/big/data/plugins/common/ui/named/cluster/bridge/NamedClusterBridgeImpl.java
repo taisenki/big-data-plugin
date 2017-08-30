@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -23,13 +23,16 @@
 package org.pentaho.big.data.plugins.common.ui.named.cluster.bridge;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import org.pentaho.big.data.api.cluster.NamedCluster;
 import org.pentaho.di.core.exception.KettleValueException;
-import org.pentaho.di.core.hadoop.HadoopSpoonPlugin;
 import org.pentaho.di.core.namedcluster.NamedClusterManager;
 import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.core.variables.VariableSpace;
 import org.pentaho.metastore.api.IMetaStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.Node;
 
 import java.util.Map;
 
@@ -37,6 +40,9 @@ import java.util.Map;
  * Created by bryan on 8/17/15.
  */
 public class NamedClusterBridgeImpl implements NamedCluster {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger( NamedClusterBridgeImpl.class );
+
   private final org.pentaho.di.core.namedcluster.model.NamedCluster delegate;
   private final NamedClusterManager namedClusterManager;
 
@@ -73,6 +79,7 @@ public class NamedClusterBridgeImpl implements NamedCluster {
   @Override
   public void replaceMeta( NamedCluster nc ) {
     delegate.setName( nc.getName() );
+    delegate.setShimIdentifier( nc.getShimIdentifier() );
     delegate.setHdfsHost( nc.getHdfsHost() );
     delegate.setHdfsPort( nc.getHdfsPort() );
     delegate.setHdfsUsername( nc.getHdfsUsername() );
@@ -82,8 +89,21 @@ public class NamedClusterBridgeImpl implements NamedCluster {
     delegate.setZooKeeperHost( nc.getZooKeeperHost() );
     delegate.setZooKeeperPort( nc.getZooKeeperPort() );
     delegate.setOozieUrl( nc.getOozieUrl() );
-    delegate.setMapr( nc.isMapr() );
+    delegate.setStorageScheme( nc.getStorageScheme() );
     delegate.setLastModifiedDate( System.currentTimeMillis() );
+    delegate.setGatewayUrl( nc.getGatewayUrl() );
+    delegate.setGatewayUsername( nc.getGatewayUsername() );
+    delegate.setGatewayPassword( nc.getGatewayPassword() );
+    delegate.setUseGateway( nc.isUseGateway() );
+    delegate.setKafkaBootstrapServers( nc.getKafkaBootstrapServers() );
+  }
+
+  public String getStorageScheme() {
+    return delegate.getStorageScheme();
+  }
+
+  public void setStorageScheme( String storageScheme ) {
+    delegate.setStorageScheme( storageScheme );
   }
 
   @Override
@@ -197,22 +217,38 @@ public class NamedClusterBridgeImpl implements NamedCluster {
   }
 
   @Override
+  public String getShimIdentifier() {
+    return delegate.getShimIdentifier();
+  }
+
+  @Override
+  public void setShimIdentifier( String shimIdentifier ) {
+    delegate.setShimIdentifier( shimIdentifier );
+  }
+
+  @Override
   public NamedCluster clone() {
     return new NamedClusterBridgeImpl( delegate.clone() );
   }
 
   @Override
   public String processURLsubstitution( String incomingURL, IMetaStore metastore, VariableSpace variableSpace ) {
-    if ( isMapr() ) {
-      String url = namedClusterManager
-        .processURLsubstitution( getName(), incomingURL, HadoopSpoonPlugin.MAPRFS_SCHEME, metastore, variableSpace );
-      if ( url != null && !url.startsWith( HadoopSpoonPlugin.MAPRFS_SCHEME ) ) {
-        url = HadoopSpoonPlugin.MAPRFS_SCHEME + "://" + url;
+    if ( isUseGateway() ) {
+      if ( incomingURL.startsWith( "nc" ) ) {
+        return incomingURL;
+      }
+      StringBuilder builder = new StringBuilder( "nc://" );
+      builder.append( getName() );
+      builder.append( incomingURL.startsWith( "/" ) ? incomingURL : "/" + incomingURL );
+      return builder.toString();
+    } else if ( isMapr() ) {
+      String url = namedClusterManager.processURLsubstitution( getName(), incomingURL, org.pentaho.di.core.namedcluster.model.NamedCluster.MAPRFS_SCHEME, metastore, variableSpace );
+      if ( url != null && !url.startsWith( org.pentaho.di.core.namedcluster.model.NamedCluster.MAPRFS_SCHEME ) ) {
+        url = org.pentaho.di.core.namedcluster.model.NamedCluster.MAPRFS_SCHEME + "://" + url;
       }
       return url;
     } else {
-      return namedClusterManager
-        .processURLsubstitution( getName(), incomingURL, HadoopSpoonPlugin.HDFS_SCHEME, metastore, variableSpace );
+      return namedClusterManager.processURLsubstitution( getName(), incomingURL, org.pentaho.di.core.namedcluster.model.NamedCluster.HDFS_SCHEME, metastore, variableSpace );
     }
   }
 
@@ -290,5 +326,66 @@ public class NamedClusterBridgeImpl implements NamedCluster {
   @Override
   public String toString() {
     return delegate.toString();
+  }
+
+
+  @Override
+  public String toXmlForEmbed( String rootTag ) {
+    return delegate.toXmlForEmbed( rootTag );
+  }
+
+  @Override
+  public NamedCluster fromXmlForEmbed( Node node ) {
+    return new NamedClusterBridgeImpl( delegate.fromXmlForEmbed( node ) );
+  }
+
+  @Override
+  public String getGatewayUrl() {
+    return  delegate.getGatewayUrl();
+  }
+
+  @Override
+  public void setGatewayUrl( String gatewayUrl ) {
+    delegate.setGatewayUrl( gatewayUrl );
+  }
+
+  @Override
+  public String getGatewayUsername() {
+    return delegate.getGatewayUsername();
+  }
+
+  @Override
+  public void setGatewayUsername( String gatewayUsername ) {
+    delegate.setGatewayUsername( gatewayUsername );
+  }
+
+  @Override
+  public String getGatewayPassword() {
+    return delegate.getGatewayPassword();
+  }
+
+  @Override
+  public void setGatewayPassword( String gatewayPassword ) {
+    delegate.setGatewayPassword( gatewayPassword );
+  }
+
+  @Override
+  public void setUseGateway( boolean selection ) {
+    delegate.setUseGateway( selection );
+  }
+
+  @Override
+  public boolean isUseGateway() {
+    return delegate.isUseGateway();
+  }
+
+  @Override
+  public String getKafkaBootstrapServers() {
+    return delegate.getKafkaBootstrapServers();
+  }
+
+  @Override
+  public void setKafkaBootstrapServers( String kafkaBootstrapServers ) {
+    delegate.setKafkaBootstrapServers( kafkaBootstrapServers );
   }
 }

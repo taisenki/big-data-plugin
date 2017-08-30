@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2016 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -22,17 +22,20 @@
 
 package org.pentaho.big.data.kettle.plugins.hdfs.trans;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.commons.vfs2.FileName;
 import org.apache.commons.vfs2.FileSystemException;
-import org.apache.commons.vfs2.provider.url.UrlFileNameParser;
 import org.pentaho.big.data.api.cluster.NamedCluster;
 import org.pentaho.big.data.api.cluster.NamedClusterService;
-import org.pentaho.di.core.Const;
 import org.pentaho.di.core.annotations.Step;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.injection.InjectionSupported;
+import org.pentaho.di.core.util.Utils;
 import org.pentaho.di.core.variables.VariableSpace;
 import org.pentaho.di.core.variables.Variables;
+import org.pentaho.di.core.vfs.KettleVFS;
 import org.pentaho.di.core.xml.XMLHandler;
 import org.pentaho.di.repository.ObjectId;
 import org.pentaho.di.repository.Repository;
@@ -42,18 +45,19 @@ import org.pentaho.runtime.test.RuntimeTester;
 import org.pentaho.runtime.test.action.RuntimeTestActionService;
 import org.w3c.dom.Node;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @Step( id = "HadoopFileInputPlugin", image = "HDI.svg", name = "HadoopFileInputPlugin.Name",
     description = "HadoopFileInputPlugin.Description",
-    documentationUrl = "http://wiki.pentaho.com/display/EAI/HBase+Input",
+    documentationUrl = "http://wiki.pentaho.com/display/EAI/Hadoop+File+Input",
     categoryDescription = "i18n:org.pentaho.di.trans.step:BaseStep.Category.BigData",
     i18nPackageName = "org.pentaho.di.trans.steps.hadoopfileinput" )
 @InjectionSupported( localizationPrefix = "HadoopFileInput.Injection.", groups = { "FILENAME_LINES", "FIELDS", "FILTERS" } )
 public class HadoopFileInputMeta extends TextFileInputMeta {
 
+  // is not used. Can we delete it?
   private VariableSpace variableSpace;
+  private final RuntimeTestActionService runtimeTestActionService;
+  private final RuntimeTester runtimeTester;
+
   private Map<String, String> namedClusterURLMapping = null;
 
   public static final String SOURCE_CONFIGURATION_NAME = "source_configuration_name";
@@ -62,8 +66,6 @@ public class HadoopFileInputMeta extends TextFileInputMeta {
   public static final String S3_SOURCE_FILE = "S3-SOURCE-FILE-";
   public static final String S3_DEST_FILE = "S3-DEST-FILE-";
   private final NamedClusterService namedClusterService;
-  private final RuntimeTestActionService runtimeTestActionService;
-  private final RuntimeTester runtimeTester;
 
   public HadoopFileInputMeta( NamedClusterService namedClusterService,
                               RuntimeTestActionService runtimeTestActionService, RuntimeTester runtimeTester ) {
@@ -73,6 +75,7 @@ public class HadoopFileInputMeta extends TextFileInputMeta {
     namedClusterURLMapping = new HashMap<String, String>();
   }
 
+  @Override
   protected String loadSource( Node filenode, Node filenamenode, int i, IMetaStore metaStore ) {
     String source_filefolder = XMLHandler.getNodeValue( filenamenode );
     Node sourceNode = XMLHandler.getSubNodeByNr( filenode, SOURCE_CONFIGURATION_NAME, i );
@@ -80,19 +83,23 @@ public class HadoopFileInputMeta extends TextFileInputMeta {
     return loadUrl( source_filefolder, source, metaStore, namedClusterURLMapping );
   }
 
+  @Override
   protected void saveSource( StringBuilder retVal, String source ) {
     String namedCluster = namedClusterURLMapping.get( source );
     retVal.append( "      " ).append( XMLHandler.addTagValue( "name", source ) );
     retVal.append( "          " ).append( XMLHandler.addTagValue( SOURCE_CONFIGURATION_NAME, namedCluster ) );
   }
 
-  protected String loadSourceRep( Repository rep, ObjectId id_step, int i ) throws KettleException {
+  // Receiving metaStore because RepositoryProxy.getMetaStore() returns a hard-coded null
+  @Override
+  protected String loadSourceRep( Repository rep, ObjectId id_step, int i, IMetaStore metaStore )
+    throws KettleException {
     String source_filefolder = rep.getStepAttributeString( id_step, i, "file_name" );
     String ncName = rep.getJobEntryAttributeString( id_step, i, SOURCE_CONFIGURATION_NAME );
-    return loadUrl( source_filefolder, ncName, repository != null ? repository.getMetaStore() : null,
-        namedClusterURLMapping );
+    return loadUrl( source_filefolder, ncName, metaStore, namedClusterURLMapping );
   }
 
+  @Override
   protected void saveSourceRep( Repository rep, ObjectId id_transformation, ObjectId id_step, int i, String fileName )
     throws KettleException {
     String namedCluster = namedClusterURLMapping.get( fileName );
@@ -105,7 +112,7 @@ public class HadoopFileInputMeta extends TextFileInputMeta {
     if ( c != null ) {
       url = c.processURLsubstitution( url, metastore, new Variables() );
     }
-    if ( !Const.isEmpty( ncName ) && !Const.isEmpty( url ) ) {
+    if ( !Utils.isEmpty( ncName ) && !Utils.isEmpty( url ) ) {
       mappings.put( url, ncName );
     }
     return url;
@@ -127,8 +134,7 @@ public class HadoopFileInputMeta extends TextFileInputMeta {
     String path = null;
     try {
       String noVariablesURL = incomingURL.replaceAll( "[${}]", "/" );
-      UrlFileNameParser parser = new UrlFileNameParser();
-      FileName fileName = parser.parseUri( null, null, noVariablesURL );
+      FileName fileName = KettleVFS.getInstance().getFileSystemManager().resolveURI( noVariablesURL );
       String root = fileName.getRootURI();
       path = incomingURL.substring( root.length() - 1 );
     } catch ( FileSystemException e ) {

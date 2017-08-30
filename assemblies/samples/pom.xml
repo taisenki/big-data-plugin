@@ -5,10 +5,10 @@
   <parent>
     <groupId>pentaho</groupId>
     <artifactId>pentaho-big-data-assemblies</artifactId>
-    <version>7.0-SNAPSHOT</version>
+    <version>8.0-SNAPSHOT</version>
   </parent>
   <artifactId>pentaho-big-data-plugin-samples</artifactId>
-  <version>7.0-SNAPSHOT</version>
+  <version>8.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <licenses>
     <license>
@@ -42,7 +42,9 @@
         </executions>
         <configuration>
           <appendAssemblyId>false</appendAssemblyId>
-          <descriptor>${basedir}/src/main/assembly/descriptors/samples.xml</descriptor>
+          <descriptors>
+            <descriptor>${basedir}/src/main/assembly/descriptors/samples.xml</descriptor>
+          </descriptors>
         </configuration>
       </plugin>
     </plugins>

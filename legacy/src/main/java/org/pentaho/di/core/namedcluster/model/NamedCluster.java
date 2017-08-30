@@ -2,7 +2,7 @@
  *
  * Pentaho Big Data
  *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
  *
  *******************************************************************************
  *
@@ -25,22 +25,33 @@ package org.pentaho.di.core.namedcluster.model;
 import java.util.Comparator;
 import java.util.Map;
 
-import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleValueException;
 import org.pentaho.di.core.row.RowMetaInterface;
-import org.pentaho.di.core.row.ValueMeta;
+import org.pentaho.di.core.row.value.ValueMetaBase;
+import org.pentaho.di.core.util.Utils;
 import org.pentaho.di.core.variables.VariableSpace;
 import org.pentaho.di.core.variables.Variables;
 import org.pentaho.metastore.persist.MetaStoreAttribute;
 import org.pentaho.metastore.persist.MetaStoreElementType;
+import org.w3c.dom.Node;
 
 @MetaStoreElementType( name = "NamedCluster", description = "A NamedCluster" )
 public class NamedCluster implements Cloneable, VariableSpace {
 
   private VariableSpace variables = new Variables();
 
+  public static final String HDFS_SCHEME = "hdfs";
+  public static final String MAPRFS_SCHEME = "maprfs";
+  public static final String WASB_SCHEME = "wasb";
+
   @MetaStoreAttribute
   private String name;
+
+  @MetaStoreAttribute
+  private String shimIdentifier;
+
+  @MetaStoreAttribute
+  private String storageScheme;
 
   @MetaStoreAttribute
   private String hdfsHost;
@@ -66,6 +77,21 @@ public class NamedCluster implements Cloneable, VariableSpace {
 
   @MetaStoreAttribute
   private boolean mapr;
+
+  @MetaStoreAttribute
+  private String gatewayUrl;
+
+  @MetaStoreAttribute
+  private String gatewayUsername;
+
+  @MetaStoreAttribute ( password = true )
+  private String gatewayPassword;
+
+  @MetaStoreAttribute
+  private boolean useGateway;
+
+  @MetaStoreAttribute
+  private String kafkaBootstrapServers;
 
   @MetaStoreAttribute
   private long lastModifiedDate = System.currentTimeMillis();
@@ -124,10 +150,10 @@ public class NamedCluster implements Cloneable, VariableSpace {
   }
 
   public boolean getBooleanValueOfVariable( String variableName, boolean defaultValue ) {
-    if ( !Const.isEmpty( variableName ) ) {
+    if ( !Utils.isEmpty( variableName ) ) {
       String value = environmentSubstitute( variableName );
-      if ( !Const.isEmpty( value ) ) {
-        return ValueMeta.convertStringToBoolean( value );
+      if ( !Utils.isEmpty( value ) ) {
+        return ValueMetaBase.convertStringToBoolean( value );
       }
     }
     return defaultValue;
@@ -155,6 +181,7 @@ public class NamedCluster implements Cloneable, VariableSpace {
 
   public void replaceMeta( NamedCluster nc ) {
     this.setName( nc.getName() );
+    this.setStorageScheme( nc.getStorageScheme() );
     this.setHdfsHost( nc.getHdfsHost() );
     this.setHdfsPort( nc.getHdfsPort() );
     this.setHdfsUsername( nc.getHdfsUsername() );
@@ -166,6 +193,11 @@ public class NamedCluster implements Cloneable, VariableSpace {
     this.setOozieUrl( nc.getOozieUrl() );
     this.setMapr( nc.isMapr() );
     this.lastModifiedDate = System.currentTimeMillis();
+    this.setGatewayUrl( nc.getGatewayUrl() );
+    this.setGatewayUsername( nc.getGatewayUsername() );
+    this.setGatewayPassword( nc.getGatewayPassword() );
+    this.setUseGateway( nc.isUseGateway() );
+    this.setKafkaBootstrapServers( nc.getKafkaBootstrapServers() );
   }
 
   public NamedCluster clone() {
@@ -280,15 +312,95 @@ public class NamedCluster implements Cloneable, VariableSpace {
   }
 
   public void setMapr( boolean mapr ) {
-    this.mapr = mapr;
+    if ( mapr ) {
+      setStorageScheme( MAPRFS_SCHEME );
+    }
   }
 
+  @Deprecated
   public boolean isMapr() {
-    return mapr;
+    if ( storageScheme == null ) {
+      return mapr;
+    } else {
+      return storageScheme.equals( MAPRFS_SCHEME );
+    }
+  }
+
+  public String getShimIdentifier() {
+    return shimIdentifier;
+  }
+
+  public void setShimIdentifier( String shimIdentifier ) {
+    this.shimIdentifier = shimIdentifier;
   }
 
   @Override
   public String toString() {
     return "Named cluster: " + getName();
+  }
+
+  public String getStorageScheme() {
+    if ( storageScheme == null ) {
+      if ( isMapr() ) {
+        storageScheme = MAPRFS_SCHEME;
+      } else {
+        storageScheme = HDFS_SCHEME;
+      }
+    }
+    return storageScheme;
+  }
+
+  public void setStorageScheme( String storageScheme ) {
+    this.storageScheme = storageScheme;
+  }
+
+
+  public String toXmlForEmbed( String rootTag ) {
+    // This method should only be called on the real NamedClusterImpl
+    return null;
+  }
+  public NamedCluster fromXmlForEmbed( Node node ) {
+    // This method should only be called on the real NamedClusterImpl
+    return null;
+  }
+
+  public String getGatewayUrl() {
+    return gatewayUrl;
+  }
+
+  public void setGatewayUrl( String gatewayUrl ) {
+    this.gatewayUrl = gatewayUrl;
+  }
+
+  public String getGatewayUsername() {
+    return gatewayUsername;
+  }
+
+  public void setGatewayUsername( String gatewayUsername ) {
+    this.gatewayUsername = gatewayUsername;
+  }
+
+  public String getGatewayPassword() {
+    return gatewayPassword;
+  }
+
+  public void setGatewayPassword( String gatewayPassword ) {
+    this.gatewayPassword = gatewayPassword;
+  }
+
+  public boolean isUseGateway() {
+    return useGateway;
+  }
+
+  public void setUseGateway( boolean useGateway ) {
+    this.useGateway = useGateway;
+  }
+
+  public String getKafkaBootstrapServers() {
+    return kafkaBootstrapServers;
+  }
+
+  public void setKafkaBootstrapServers( String kafkaBootstrapServers ) {
+    this.kafkaBootstrapServers = kafkaBootstrapServers;
   }
 }

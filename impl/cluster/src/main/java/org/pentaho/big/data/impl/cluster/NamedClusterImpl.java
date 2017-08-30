@@ -1,54 +1,88 @@
 /*******************************************************************************
- *
  * Pentaho Big Data
- *
- * Copyright (C) 2002-2015 by Pentaho : http://www.pentaho.com
- *
- *******************************************************************************
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with
+ * <p>
+ * Copyright (C) 2002-2017 by Pentaho : http://www.pentaho.com
+ * <p>
+ * ******************************************************************************
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  ******************************************************************************/
 
 package org.pentaho.big.data.impl.cluster;
 
-import com.google.common.annotations.VisibleForTesting;
+import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.apache.commons.beanutils.BeanMap;
+import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.vfs2.FileName;
 import org.apache.commons.vfs2.provider.url.UrlFileName;
 import org.apache.commons.vfs2.provider.url.UrlFileNameParser;
 import org.pentaho.big.data.api.cluster.NamedCluster;
-import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleValueException;
+import org.pentaho.di.core.osgi.api.NamedClusterOsgi;
 import org.pentaho.di.core.row.RowMetaInterface;
-import org.pentaho.di.core.row.ValueMeta;
+import org.pentaho.di.core.row.value.ValueMetaBase;
 import org.pentaho.di.core.util.StringUtil;
+import org.pentaho.di.core.util.Utils;
 import org.pentaho.di.core.variables.VariableSpace;
 import org.pentaho.di.core.variables.Variables;
+import org.pentaho.di.core.xml.XMLHandler;
 import org.pentaho.metastore.api.IMetaStore;
+import org.pentaho.metastore.api.security.Base64TwoWayPasswordEncoder;
+import org.pentaho.metastore.api.security.ITwoWayPasswordEncoder;
 import org.pentaho.metastore.persist.MetaStoreAttribute;
 import org.pentaho.metastore.persist.MetaStoreElementType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
-import java.util.Map;
+import com.google.common.annotations.VisibleForTesting;
 
 @MetaStoreElementType( name = "NamedCluster", description = "A NamedCluster" )
-public class NamedClusterImpl implements NamedCluster {
+public class NamedClusterImpl implements NamedCluster, NamedClusterOsgi {
+
   public static final String HDFS_SCHEME = "hdfs";
   public static final String MAPRFS_SCHEME = "maprfs";
+  public static final String WASB_SCHEME = "wasb";
+  public static final String NC_SCHEME = "nc";
+  public static final String INDENT = "  ";
+  public static final String ROOT_INDENT = "    ";
+  private static final Logger LOGGER = LoggerFactory.getLogger( NamedClusterImpl.class );
 
   private VariableSpace variables = new Variables();
 
   @MetaStoreAttribute
   private String name;
+
+  @MetaStoreAttribute
+  private String shimIdentifier;
+
+  @MetaStoreAttribute
+  private String storageScheme;
 
   @MetaStoreAttribute
   private String hdfsHost;
@@ -58,7 +92,6 @@ public class NamedClusterImpl implements NamedCluster {
   private String hdfsUsername;
   @MetaStoreAttribute( password = true )
   private String hdfsPassword;
-
   @MetaStoreAttribute
   private String jobTrackerHost;
   @MetaStoreAttribute
@@ -73,12 +106,27 @@ public class NamedClusterImpl implements NamedCluster {
   private String oozieUrl;
 
   @MetaStoreAttribute
+  @Deprecated
   private boolean mapr;
+
+  @MetaStoreAttribute
+  private String gatewayUrl;
+
+  @MetaStoreAttribute
+  private String gatewayUsername;
+
+  @MetaStoreAttribute ( password = true )
+  private String gatewayPassword;
+  @MetaStoreAttribute
+  private boolean useGateway;
+
+  @MetaStoreAttribute
+  private String kafkaBootstrapServers;
 
   @MetaStoreAttribute
   private long lastModifiedDate = System.currentTimeMillis();
 
-
+  private ITwoWayPasswordEncoder passwordEncoder = new Base64TwoWayPasswordEncoder();
 
   public NamedClusterImpl() {
     initializeVariablesFrom( null );
@@ -95,6 +143,29 @@ public class NamedClusterImpl implements NamedCluster {
 
   public String getName() {
     return name;
+  }
+
+  public String getShimIdentifier() {
+    return shimIdentifier;
+  }
+
+  public void setShimIdentifier( String shimIdentifier ) {
+    this.shimIdentifier = shimIdentifier;
+  }
+
+  public String getStorageScheme() {
+    if ( storageScheme == null ) {
+      if ( isMapr() ) {
+        storageScheme = MAPRFS_SCHEME;
+      } else {
+        storageScheme = HDFS_SCHEME;
+      }
+    }
+    return storageScheme;
+  }
+
+  public void setStorageScheme( String storageScheme ) {
+    this.storageScheme = storageScheme;
   }
 
   public void copyVariablesFrom( VariableSpace space ) {
@@ -131,10 +202,10 @@ public class NamedClusterImpl implements NamedCluster {
   }
 
   public boolean getBooleanValueOfVariable( String variableName, boolean defaultValue ) {
-    if ( !Const.isEmpty( variableName ) ) {
+    if ( !Utils.isEmpty( variableName ) ) {
       String value = environmentSubstitute( variableName );
-      if ( !Const.isEmpty( value ) ) {
-        return ValueMeta.convertStringToBoolean( value );
+      if ( !Utils.isEmpty( value ) ) {
+        return ValueMetaBase.convertStringToBoolean( value );
       }
     }
     return defaultValue;
@@ -162,6 +233,7 @@ public class NamedClusterImpl implements NamedCluster {
 
   public void replaceMeta( NamedCluster nc ) {
     this.setName( nc.getName() );
+    this.setStorageScheme( nc.getStorageScheme() );
     this.setHdfsHost( nc.getHdfsHost() );
     this.setHdfsPort( nc.getHdfsPort() );
     this.setHdfsUsername( nc.getHdfsUsername() );
@@ -172,6 +244,11 @@ public class NamedClusterImpl implements NamedCluster {
     this.setZooKeeperPort( nc.getZooKeeperPort() );
     this.setOozieUrl( nc.getOozieUrl() );
     this.setMapr( nc.isMapr() );
+    this.setGatewayUrl( nc.getGatewayUrl() );
+    this.setGatewayUsername( nc.getGatewayUsername() );
+    this.setGatewayPassword( nc.getGatewayPassword() );
+    this.setUseGateway( nc.isUseGateway() );
+    this.setKafkaBootstrapServers( nc.getKafkaBootstrapServers() );
     this.lastModifiedDate = System.currentTimeMillis();
   }
 
@@ -181,24 +258,35 @@ public class NamedClusterImpl implements NamedCluster {
 
   @Override
   public String processURLsubstitution( String incomingURL, IMetaStore metastore, VariableSpace variableSpace ) {
-    if ( isMapr() ) {
-      String url =
-        processURLsubstitution( incomingURL, MAPRFS_SCHEME, metastore, variableSpace );
+    if ( isUseGateway() ) {
+      if ( incomingURL.startsWith( NC_SCHEME ) ) {
+        return incomingURL;
+      }
+      StringBuilder builder = new StringBuilder( NC_SCHEME + "://" );
+      builder.append( getName() );
+      builder.append( incomingURL.startsWith( "/" ) ? incomingURL : "/" + incomingURL );
+      return builder.toString();
+    } else if ( isMapr() ) {
+      String url = processURLsubstitution( incomingURL, MAPRFS_SCHEME, metastore, variableSpace );
       if ( url != null && !url.startsWith( MAPRFS_SCHEME ) ) {
         url = MAPRFS_SCHEME + "://" + url;
       }
       return url;
     } else {
-      return processURLsubstitution( incomingURL, HDFS_SCHEME, metastore, variableSpace );
+      return processURLsubstitution( incomingURL, getStorageScheme(), metastore, variableSpace );
     }
   }
 
   private String processURLsubstitution( String incomingURL, String hdfsScheme, IMetaStore metastore,
                                          VariableSpace variableSpace ) {
+
     String outgoingURL = null;
+    String clusterURL = null;
+    if ( !hdfsScheme.equals( MAPRFS_SCHEME ) ) {
+      clusterURL = generateURL( hdfsScheme, metastore, variableSpace );
+    }
     try {
-      String clusterURL = generateURL( hdfsScheme, metastore, variableSpace );
-      if ( clusterURL == null ) {
+      if ( clusterURL == null || isHdfsHostEmpty( variableSpace ) ) {
         outgoingURL = incomingURL;
       } else if ( incomingURL.equals( "/" ) ) {
         outgoingURL = clusterURL;
@@ -206,7 +294,7 @@ public class NamedClusterImpl implements NamedCluster {
         String noVariablesURL = incomingURL.replaceAll( "[${}]", "/" );
 
         String fullyQualifiedIncomingURL = incomingURL;
-        if ( !incomingURL.startsWith( hdfsScheme ) ) {
+        if ( !incomingURL.startsWith( hdfsScheme ) && !incomingURL.startsWith( NC_SCHEME ) ) {
           fullyQualifiedIncomingURL = clusterURL + incomingURL;
           noVariablesURL = clusterURL + incomingURL.replaceAll( "[${}]", "/" );
         }
@@ -216,7 +304,22 @@ public class NamedClusterImpl implements NamedCluster {
         String root = fileName.getRootURI();
         String path = fullyQualifiedIncomingURL.substring( root.length() - 1 );
         StringBuffer buffer = new StringBuffer();
-        buffer.append( clusterURL );
+        // Check for a special case where a fully qualified path (one that has the protocol in it).
+        // This can only happen through variable replacement. See BACKLOG-15849. When this scenario
+        // occurs we do not prepend the cluster uri to the url.
+        boolean prependCluster = true;
+        if ( variableSpace != null ) {
+          String filePath = variableSpace.environmentSubstitute( path );
+          StringBuilder pattern = new StringBuilder();
+          pattern.append( "^(" ).append( HDFS_SCHEME ).append( "|" ).append( WASB_SCHEME ).append( "|" ).append(
+              MAPRFS_SCHEME ).append( "|" ).append( NC_SCHEME ).append( "):\\/\\/" );
+          Pattern r = Pattern.compile( pattern.toString() );
+          Matcher m = r.matcher( filePath );
+          prependCluster = !m.find();
+        }
+        if ( prependCluster ) {
+          buffer.append( clusterURL );
+        }
         buffer.append( path );
         outgoingURL = buffer.toString();
       }
@@ -226,6 +329,20 @@ public class NamedClusterImpl implements NamedCluster {
     return outgoingURL;
   }
 
+  @VisibleForTesting boolean isHdfsHostEmpty( VariableSpace variableSpace ) {
+    String hostNameParsed = getHostNameParsed( variableSpace );
+    return hostNameParsed == null || hostNameParsed.trim().isEmpty();
+  }
+
+  public String getHostNameParsed( VariableSpace variableSpace ) {
+    if ( StringUtil.isVariable( hdfsHost ) ) {
+      if ( variableSpace == null ) {
+        return null;
+      }
+      return variableSpace.getVariable( StringUtil.getVariableName( getHdfsHost() ) );
+    }
+    return hdfsHost != null ? hdfsHost.trim() : null;
+  }
 
   /**
    * This method generates the URL from the specific NamedCluster using the specified scheme.
@@ -236,11 +353,7 @@ public class NamedClusterImpl implements NamedCluster {
   @VisibleForTesting String generateURL( String scheme, IMetaStore metastore, VariableSpace variableSpace ) {
     String clusterURL = null;
     try {
-      if ( !Const.isEmpty( scheme ) && metastore != null ) {
-        if ( !scheme.equals( HDFS_SCHEME ) ) {
-          return null;
-        }
-
+      if ( !Utils.isEmpty( scheme ) ) {
         String ncHostname = getHdfsHost() != null ? getHdfsHost() : "";
         String ncPort = getHdfsPort() != null ? getHdfsPort() : "";
         String ncUsername = getHdfsUsername() != null ? getHdfsUsername() : "";
@@ -248,6 +361,11 @@ public class NamedClusterImpl implements NamedCluster {
 
         if ( variableSpace != null ) {
           variableSpace.initializeVariablesFrom( getParentVariableSpace() );
+          if ( StringUtil.isVariable( scheme ) ) {
+            scheme =
+              variableSpace.getVariable( StringUtil.getVariableName( scheme ) ) != null ? variableSpace
+                .environmentSubstitute( scheme ) : null;
+          }
           if ( StringUtil.isVariable( ncHostname ) ) {
             ncHostname =
               variableSpace.getVariable( StringUtil.getVariableName( ncHostname ) ) != null ? variableSpace
@@ -275,7 +393,7 @@ public class NamedClusterImpl implements NamedCluster {
           ncPort = "-1";
         } else {
           ncPort = ncPort.trim();
-          if ( Const.isEmpty( ncPort ) ) {
+          if ( Utils.isEmpty( ncPort ) ) {
             ncPort = "-1";
           }
         }
@@ -402,15 +520,159 @@ public class NamedClusterImpl implements NamedCluster {
   }
 
   public void setMapr( boolean mapr ) {
-    this.mapr = mapr;
+    if ( mapr ) {
+      setStorageScheme( MAPRFS_SCHEME );
+    }
   }
 
+  @Deprecated
   public boolean isMapr() {
-    return mapr;
+    if ( storageScheme == null ) {
+      return mapr;
+    } else {
+      return storageScheme.equals( MAPRFS_SCHEME );
+    }
   }
 
   @Override
   public String toString() {
     return "Named cluster: " + getName();
+  }
+
+  public String toXmlForEmbed( String rootTag ) {
+    BeanMap m = new BeanMap( this );
+    DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+    DocumentBuilder builder = null;
+    Document doc = null;
+    try {
+      builder = dbf.newDocumentBuilder();
+      doc = builder.newDocument();
+      Element rootNode = doc.createElement( rootTag );
+      doc.appendChild( rootNode );
+      Iterator<Map.Entry<Object, Object>> i = m.entryIterator();
+      while ( i.hasNext() ) {
+        Map.Entry<Object, Object> entry = i.next();
+        String elementName = (String) entry.getKey();
+        if ( !"class".equals( elementName ) && !"parentVariableSpace".equals( elementName ) ) {
+          String value = "";
+          String type = "String";
+          Object o = entry.getValue();
+          if ( o != null ) {
+            if ( o instanceof Long ) {
+              value = Long.toString( (Long) o );
+            } else if ( o instanceof Boolean ) {
+              value = Boolean.toString( (Boolean) o );
+            } else {
+              try {
+                value = (String) entry.getValue();
+                if ( elementName.toLowerCase().contains( "password" ) ) {
+                  value = passwordEncoder.encode( value );
+                }
+              } catch ( Exception e ) {
+                e.printStackTrace();
+              }
+            }
+          }
+          rootNode.appendChild( createChildElement( doc, elementName, type, value ) );
+        }
+      }
+      DOMSource domSource = new DOMSource( doc );
+      StringWriter writer = new StringWriter();
+      StreamResult result = new StreamResult( writer );
+      TransformerFactory tf = TransformerFactory.newInstance();
+      Transformer transformer = tf.newTransformer();
+      transformer.transform( domSource, result );
+      String s = writer.toString();
+      // Remove header from the XML
+      s = s.substring( s.indexOf( ">" ) + 1 );
+      return s;
+    } catch ( ParserConfigurationException | TransformerException e1 ) {
+      LOGGER.error( "Could not parse embedded cluster xml" + e1.toString() );
+      return "";
+    }
+  }
+
+  public NamedCluster fromXmlForEmbed( Node node ) {
+    NamedClusterImpl returnCluster = this.clone();
+    List<Node> fields = XMLHandler.getNodes( node, "child" );
+    for ( Node field: fields ) {
+      String fieldName = XMLHandler.getTagValue( field, "id" );
+      String fieldValue = XMLHandler.getTagValue(  field, "value" );
+      if ( fieldName.toLowerCase().contains( "password" ) ) {
+        fieldValue = passwordEncoder.decode( fieldValue );
+      }
+      try {
+        BeanUtils.setProperty( returnCluster, fieldName, fieldValue );
+      } catch ( IllegalAccessException | InvocationTargetException e ) {
+        LOGGER.error( "Could not serialize NamedCluster to xml: " + e.toString() );
+      }
+    }
+    return returnCluster;
+  }
+
+  private Node createChildElement( Document doc, String elementName, String elementType, String elementValue ) {
+    Element childNode = doc.createElement( "child" );
+    childNode.appendChild( createTextNode( doc, "id", elementName ) );
+    childNode.appendChild( createTextNode( doc, "value", elementValue ) );
+    childNode.appendChild( createTextNode( doc, "type", elementType ) );
+    return childNode;
+  }
+
+  private Node createTextNode( Document doc, String tagName, String value ) {
+    Node node = doc.createElement( tagName );
+    node.appendChild( doc.createTextNode( value ) );
+    return node;
+  }
+
+  @Override
+  public String getGatewayUrl() {
+    return gatewayUrl;
+  }
+
+  @Override
+  public void setGatewayUrl( String gatewayUrl ) {
+    this.gatewayUrl = gatewayUrl;
+  }
+
+  @Override
+  public String getGatewayUsername() {
+    return gatewayUsername;
+  }
+
+  @Override
+  public void setGatewayUsername( String gatewayUsername ) {
+    this.gatewayUsername = gatewayUsername;
+  }
+
+  @Override
+  public String getGatewayPassword() {
+    return gatewayPassword;
+  }
+
+  @Override
+  public void setGatewayPassword( String gatewayPassword ) {
+    this.gatewayPassword = gatewayPassword;
+  }
+
+  @Override
+  public boolean isUseGateway() {
+    return useGateway;
+  }
+
+  @Override
+  public void setUseGateway( boolean useGateway ) {
+    this.useGateway = useGateway;
+  }
+
+  @Override public String getKafkaBootstrapServers() {
+    return kafkaBootstrapServers;
+  }
+
+  @Override public void setKafkaBootstrapServers( String kafkaBootstrapServers ) {
+    this.kafkaBootstrapServers = kafkaBootstrapServers;
+  }
+
+  @Override public NamedClusterOsgi nonOsgiFromXmlForEmbed( Node node ) {
+    return (NamedClusterOsgi) fromXmlForEmbed( node );
   }
 }

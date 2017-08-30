@@ -5,22 +5,21 @@
   <parent>
     <groupId>pentaho</groupId>
     <artifactId>pentaho-big-data-assemblies</artifactId>
-    <version>7.0-SNAPSHOT</version>
+    <version>8.0-SNAPSHOT</version>
   </parent>
   <artifactId>pentaho-big-data-assemblies-standalone</artifactId>
-  <version>7.0-SNAPSHOT</version>
+  <version>8.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <properties>
     <publish-sonar-phase>site</publish-sonar-phase>
     <package.features>true</package.features>
     <dependency.karaf.revision>2.3.5</dependency.karaf.revision>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <pentaho-karaf-ee-assembly.version>${project.version}</pentaho-karaf-ee-assembly.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
   <dependencies>
     <dependency>
-      <groupId>pentaho-kettle</groupId>
+      <groupId>org.pentaho.di</groupId>
       <artifactId>pdi-ce</artifactId>
       <version>${dependency.kettle.revision}</version>
       <type>zip</type>
@@ -46,7 +45,7 @@
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>pentaho-kettle</groupId>
+                  <groupId>org.pentaho.di</groupId>
                   <artifactId>pdi-ce</artifactId>
                   <type>zip</type>
                   <outputDirectory>target/dependencies</outputDirectory>
